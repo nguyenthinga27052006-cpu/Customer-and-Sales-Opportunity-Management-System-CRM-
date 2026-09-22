@@ -1,0 +1,277 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------
+// 1. VAI TRÒ & PHÂN QUYỀN (RBAC)
+// ----------------------------------------------------
+
+model VaiTro {
+  id          String             @id @default(uuid())
+  maVaiTro    String             @unique @map("ma_vai_tro") // ADMIN, DIRECTOR, TEAM_LEAD, SALES_REP, MARKETING, CUST_SUCCESS, ACCOUNTANT
+  tenVaiTro   String             @map("ten_vai_tro")
+  moTa        String?            @map("mo_ta")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  nguoiDung   NguoiDungVaiTro[]
+  quyenHan    VaiTroQuyenHan[]
+
+  @@map("vai_tro")
+}
+
+model QuyenHan {
+  id        String           @id @default(uuid())
+  maQuyen   String           @unique @map("ma_quyen")
+  tenQuyen  String           @map("ten_quyen")
+  module    String           @map("module")
+  moTa      String?          @map("mo_ta")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  vaiTro    VaiTroQuyenHan[]
+
+  @@map("quyen_han")
+}
+
+model VaiTroQuyenHan {
+  vaiTroId   String   @map("vai_tro_id")
+  quyenHanId String   @map("quyen_han_id")
+
+  vaiTro     VaiTro   @relation(fields: [vaiTroId], references: [id], onDelete: Cascade)
+  quyenHan   QuyenHan @relation(fields: [quyenHanId], references: [id], onDelete: Cascade)
+
+  @@id([vaiTroId, quyenHanId])
+  @@map("vai_tro_quyen_han")
+}
+
+// ----------------------------------------------------
+// 2. KHU VỰC & NHÓM KINH DOANH (CƠ CẤU TỔ CHỨC)
+// ----------------------------------------------------
+
+model KhuVuc {
+  id        String           @id @default(uuid())
+  maKhuVuc  String           @unique @map("ma_khu_vuc")
+  tenKhuVuc String           @map("ten_khu_vuc")
+  moTa      String?          @map("mo_ta")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  nhomKinhDoanh NhomKinhDoanh[]
+
+  @@map("khu_vuc")
+}
+
+model NhomKinhDoanh {
+  id           String          @id @default(uuid())
+  maNhom       String          @unique @map("ma_nhom")
+  tenNhom      String          @map("ten_nhom")
+  nhomChaId    String?         @map("nhom_cha_id")
+  khuVucId     String?         @map("khu_vuc_id")
+  truongNhomId String?         @map("truong_nhom_id")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  nhomCha      NhomKinhDoanh?  @relation("NhomCay", fields: [nhomChaId], references: [id], onDelete: SetNull)
+  nhomCon      NhomKinhDoanh[] @relation("NhomCay")
+  khuVuc       KhuVuc?         @relation(fields: [khuVucId], references: [id], onDelete: SetNull)
+  truongNhom   NguoiDung?      @relation("TruongNhom", fields: [truongNhomId], references: [id], onDelete: SetNull)
+  thanhVien    NguoiDung[]     @relation("ThanhVienNhom")
+
+  @@map("nhom_kinh_doanh")
+}
+
+// ----------------------------------------------------
+// 3. NGƯỜI DÙNG & PHIÊN ĐĂNG NHẬP
+// ----------------------------------------------------
+
+enum TrangThaiNguoiDung {
+  HOAT_DONG
+  DA_KHOA
+  CHO_KICH_HOAT
+}
+
+model NguoiDung {
+  id                  String             @id @default(uuid())
+  email               String             @unique @map("email")
+  matKhauHash         String             @map("mat_khau_hash")
+  hoTen               String             @map("ho_ten")
+  soDienThoai         String?            @map("so_dien_thoai")
+  chuKyEmail          String?            @map("chu_ky_email")
+  avatarUrl           String?            @map("avatar_url")
+  trangThai           TrangThaiNguoiDung @default(HOAT_DONG) @map("trang_thai")
+  soLanDangNhapSai    Int                @default(0) @map("so_lan_dang_nhap_sai")
+  khoaDenKhi          DateTime?          @map("khoa_den_khi")
+  nhomKinhDoanhId     String?            @map("nhom_kinh_doanh_id")
+  lanDangNhapCuoi     DateTime?          @map("lan_dang_nhap_cuoi")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  nhomKinhDoanh       NhomKinhDoanh?     @relation("ThanhVienNhom", fields: [nhomKinhDoanhId], references: [id], onDelete: SetNull)
+  truongNhomTai       NhomKinhDoanh[]    @relation("TruongNhom")
+  vaiTro              NguoiDungVaiTro[]
+  phienDangNhap       PhienDangNhap[]
+  datLaiMatKhau       DatLaiMatKhau[]
+  nhatKyHeThong       NhatKyHeThong[]    @relation("NguoiThucHien")
+
+  @@map("nguoi_dung")
+}
+
+model NguoiDungVaiTro {
+  nguoiDungId String    @map("nguoi_dung_id")
+  vaiTroId    String    @map("vai_tro_id")
+
+  nguoiDung   NguoiDung @relation(fields: [nguoiDungId], references: [id], onDelete: Cascade)
+  vaiTro      VaiTro    @relation(fields: [vaiTroId], references: [id], onDelete: Cascade)
+
+  @@id([nguoiDungId, vaiTroId])
+  @@map("nguoi_dung_vai_tro")
+}
+
+model PhienDangNhap {
+  id               String    @id @default(uuid())
+  nguoiDungId      String    @map("nguoi_dung_id")
+  refreshTokenHash String    @map("refresh_token_hash")
+  deviceInfo       String?   @map("device_info")
+  hetHanLuc        DateTime  @map("het_han_luc")
+  daThuHoi         Boolean   @default(false) @map("da_thu_hoi")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  nguoiDung        NguoiDung @relation(fields: [nguoiDungId], references: [id], onDelete: Cascade)
+
+  @@map("phien_dang_nhap")
+}
+
+model DatLaiMatKhau {
+  id          String    @id @default(uuid())
+  nguoiDungId String    @map("nguoi_dung_id")
+  tokenHash   String    @map("token_hash")
+  hetHanLuc   DateTime  @map("het_han_luc")
+  daSuDung    Boolean   @default(false) @map("da_su_dung")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  nguoiDung   NguoiDung @relation(fields: [nguoiDungId], references: [id], onDelete: Cascade)
+
+  @@map("dat_lai_mat_khau")
+}
+
+// ----------------------------------------------------
+// 4. NHẬT KÝ THAY ĐỔI DỮ LIỆU NHẠY CẢM (AUDIT LOG)
+// ----------------------------------------------------
+
+model NhatKyHeThong {
+  id              String     @id @default(uuid())
+  nguoiThucHienId String?    @map("nguoi_thuc_hien_id")
+  loaiDoiTuong    String     @map("loai_doi_tuong") // NGUOI_DUNG, VAI_TRO, CHIET_KHAU, CHI_TIEU, SAN_PHAM, QUYEN_SO_HUU
+  doiTuongId      String?    @map("doi_tuong_id")
+  hanhDong        String     @map("hanh_dong") // TAO, SUA, XOA, KHOA, BAN_GIAO
+  giaTriTruoc     Json?      @map("gia_tri_truoc")
+  giaTriSau       Json?      @map("gia_tri_sau")
+  ipAddress       String?    @map("ip_address")
+  userAgent       String?    @map("user_agent")
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  nguoiThucHien   NguoiDung? @relation("NguoiThucHien", fields: [nguoiThucHienId], references: [id], onDelete: SetNull)
+
+  @@map("nhat_ky_he_thong")
+}
+
+// ----------------------------------------------------
+// 5. DANH MỤC DÙNG CHUNG (CATALOGS)
+// ----------------------------------------------------
+
+model DanhMucDungChung {
+  id            String   @id @default(uuid())
+  loaiDanhMuc   String   @map("loai_danh_muc") // NGANH_NGHE, QUY_MO, NGUON_LEAD, LOAI_HOAT_DONG
+  maMuc         String   @map("ma_muc")
+  tenMuc        String   @map("ten_muc")
+  thuTuHienThi  Int      @default(0) @map("thu_tu_hien_thi")
+  kichHoat      Boolean  @default(true) @map("kich_hoat")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([loaiDanhMuc, maMuc])
+  @@map("danh_muc_dung_chung")
+}
+
+// ----------------------------------------------------
+// 6. SẢN PHẨM & BẢNG GIÁ NIÊM YẾT
+// ----------------------------------------------------
+
+enum LoaiSanPham {
+  MOT_LAN
+  THUE_BAO
+}
+
+enum TrangThaiSanPham {
+  DANG_KINH_DOANH
+  NGUNG_KINH_DOANH
+}
+
+model SanPham {
+  id           String           @id @default(uuid())
+  maSanPham    String           @unique @map("ma_san_pham")
+  tenSanPham   String           @map("ten_san_pham")
+  loaiSanPham  LoaiSanPham      @default(MOT_LAN) @map("loai_san_pham")
+  donViTinh    String           @map("don_vi_tinh")
+  giaNiemYet   Decimal          @map("gia_niem_yet") @db.Decimal(15, 2)
+  giaSan       Decimal          @map("gia_san") @db.Decimal(15, 2) // Ngưỡng duyệt chiết khấu
+  giaVon       Decimal          @map("gia_von") @db.Decimal(15, 2) // Chỉ Director / Admin xem được
+  trangThai    TrangThaiSanPham @default(DANG_KINH_DOANH) @map("trang_thai")
+  moTa         String?          @map("mo_ta")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  @@map("san_pham")
+}
+
+// ----------------------------------------------------
+// 7. CẤU HÌNH PIPELINE, LÝ DO THẮNG/THUA, ĐỐI THỦ
+// ----------------------------------------------------
+
+model GiaiDoanPipeline {
+  id                 String   @id @default(uuid())
+  maGiaiDoan         String   @unique @map("ma_giai_doan")
+  tenGiaiDoan        String   @map("ten_giai_doan")
+  thuTu              Int      @map("thu_tu")
+  xacSuatThang       Int      @default(10) @map("xac_suat_thang") // % xác suất thắng (0-100)
+  dieuKienBatBuoc    String?  @map("dieu_kien_bat_buoc")
+  kichHoat           Boolean  @default(true) @map("kich_hoat")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("giai_doan_pipeline")
+}
+
+enum LoaiLyDo {
+  THANG
+  THUA
+}
+
+model LyDoThangThua {
+  id        String   @id @default(uuid())
+  loai      LoaiLyDo @map("loai")
+  noiDung   String   @map("noi_dung")
+  thuTu     Int      @default(0) @map("thu_tu")
+  kichHoat  Boolean  @default(true) @map("kich_hoat")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("ly_do_thang_thua")
+}
+
+model DoiThu {
+  id        String   @id @default(uuid())
+  tenDoiThu String   @unique @map("ten_doi_thu")
+  diemManh  String?  @map("diem_manh")
+  diemYeu   String?  @map("diem_yeu")
+  moTa      String?  @map("mo_ta")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("doi_thu")
+}
