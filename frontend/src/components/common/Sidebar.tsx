@@ -1,6 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
+  Building2,
+  Target,
+  Sliders,
+  Globe,
   Users,
   Network,
   Package,
@@ -32,6 +36,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       show: true,
     },
     {
+      title: 'Khách hàng (Customer)',
+      to: '/customers',
+      icon: Building2,
+      show: true,
+    },
+    {
+      title: 'Lead Tiềm năng',
+      to: '/leads',
+      icon: Target,
+      show: true,
+    },
+    {
       title: 'Quản trị Người dùng',
       to: '/users',
       icon: Users,
@@ -47,13 +63,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       title: 'Sản phẩm & Bảng giá',
       to: '/products',
       icon: Package,
-      show: true, // Xem danh mục sản phẩm (giá vốn được phân quyền ở backend)
+      show: true,
     },
     {
       title: 'Cấu hình Pipeline',
       to: '/pipeline',
       icon: GitBranch,
       show: isDirectorOrAdmin(),
+    },
+    {
+      title: 'Cấu hình Rules Lead',
+      to: '/leads-config',
+      icon: Sliders,
+      show: isDirectorOrAdmin(),
+    },
+    {
+      title: 'Mã nhúng Web Form',
+      to: '/leads-webform',
+      icon: Globe,
+      show: true,
     },
     {
       title: 'Danh mục dùng chung',

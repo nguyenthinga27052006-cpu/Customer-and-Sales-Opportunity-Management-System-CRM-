@@ -14,6 +14,12 @@ import { ProductsPage } from './pages/products/ProductsPage';
 import { PipelineConfigPage } from './pages/pipeline/PipelineConfigPage';
 import { GeneralSettingsPage } from './pages/settings/GeneralSettingsPage';
 import { AuditLogPage } from './pages/audit/AuditLogPage';
+import { CustomerListPage } from './pages/CustomerListPage';
+import { CustomerDetailPage } from './pages/CustomerDetailPage';
+import { LeadListPage } from './pages/LeadListPage';
+import { LeadDetailPage } from './pages/LeadDetailPage';
+import { LeadConfigPage } from './pages/LeadConfigPage';
+import { WebFormEmbedPage } from './pages/WebFormEmbedPage';
 import { Error403Page } from './pages/errors/Error403Page';
 import { Error404Page } from './pages/errors/Error404Page';
 import { VaiTroEnum } from './types';
@@ -39,6 +45,23 @@ export const App: React.FC = () => {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="profile" element={<ProfilePage />} />
+
+            {/* SPRINT 2: KHÁCH HÀNG & CUSTOMER 360 */}
+            <Route path="customers" element={<CustomerListPage />} />
+            <Route path="customers/:id" element={<CustomerDetailPage />} />
+
+            {/* SPRINT 2: LEAD & PHÂN BỔ */}
+            <Route path="leads" element={<LeadListPage />} />
+            <Route path="leads/:id" element={<LeadDetailPage />} />
+            <Route
+              path="leads-config"
+              element={
+                <ProtectedRoute roles={[VaiTroEnum.ADMIN, VaiTroEnum.DIRECTOR]}>
+                  <LeadConfigPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="leads-webform" element={<WebFormEmbedPage />} />
 
             {/* Quản trị Người dùng (Admin, Director, Team Lead) */}
             <Route

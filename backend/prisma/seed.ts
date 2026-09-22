@@ -447,6 +447,303 @@ async function main() {
   }
   console.log('✓ Seeded DoiThu');
 
+  // ----------------------------------------------------
+  // SPRINT 2: SEED DỮ LIỆU KHÁCH HÀNG, CONTACT, LEAD, RULES
+  // ----------------------------------------------------
+  console.log('\n--- BẮT ĐẦU SEED DỮ LIỆU SPRINT 2 ---');
+
+  // 10. CẤU HÌNH CHẤM ĐIỂM & QUY TẮC CHẤM ĐIỂM
+  const cauHinh = await prisma.cauHinhChamDiem.findFirst();
+  if (!cauHinh) {
+    await prisma.cauHinhChamDiem.create({
+      data: {
+        nguongNong: 50,
+        nguongAm: 25,
+        thoiGianSlaGio: 24,
+      },
+    });
+  }
+  console.log('✓ Seeded CauHinhChamDiem');
+
+  const scoringRules = [
+    { tenQuyTac: 'Ngành Công nghệ thông tin', tieuChi: 'NGANH_NGHE', toanTu: 'EQUALS', giaTri: 'CONG_NGHE', diem: 20, thuTu: 1 },
+    { tenQuyTac: 'Ngành Tài chính - Ngân hàng', tieuChi: 'NGANH_NGHE', toanTu: 'EQUALS', giaTri: 'TAI_CHINH', diem: 20, thuTu: 2 },
+    { tenQuyTac: 'Quy mô doanh nghiệp trên 100 nhân sự', tieuChi: 'QUY_MO', toanTu: 'EQUALS', giaTri: 'TREN_100_NV', diem: 15, thuTu: 3 },
+    { tenQuyTac: 'Nguồn từ Website đăng ký form', tieuChi: 'NGUON_LEAD', toanTu: 'EQUALS', giaTri: 'WEBSITE', diem: 15, thuTu: 4 },
+    { tenQuyTac: 'Nguồn khách hàng giới thiệu', tieuChi: 'NGUON_LEAD', toanTu: 'EQUALS', giaTri: 'REFERRAL', diem: 20, thuTu: 5 },
+    { tenQuyTac: 'Mức độ quan tâm: Rất cao', tieuChi: 'MUC_DO_QUAN_TAM', toanTu: 'EQUALS', giaTri: 'RAT_CAO', diem: 20, thuTu: 6 },
+  ];
+
+  for (const sr of scoringRules) {
+    const existing = await prisma.quyTacChamDiem.findFirst({
+      where: { tieuChi: sr.tieuChi, giaTri: sr.giaTri },
+    });
+    if (!existing) {
+      await prisma.quyTacChamDiem.create({ data: sr });
+    }
+  }
+  console.log('✓ Seeded QuyTacChamDiem');
+
+  // Lấy ID người dùng mẫu
+  const salesHn = await prisma.nguoiDung.findUnique({ where: { email: 'sales_hn1@crm.vn' } });
+  const salesHcm = await prisma.nguoiDung.findUnique({ where: { email: 'sales_hcm1@crm.vn' } });
+  const teamLeadHn = await prisma.nguoiDung.findUnique({ where: { email: 'lead_hn@crm.vn' } });
+  const director = await prisma.nguoiDung.findUnique({ where: { email: 'director@crm.vn' } });
+
+  // 11. QUY TẮC PHÂN BỔ LEAD
+  const assignmentRules = [
+    {
+      tenQuyTac: 'Ưu tiên 1: Phân bổ Lead khu vực Miền Bắc',
+      thuTuUuTien: 1,
+      loaiQuyTac: 'KHU_VUC' as any,
+      dieuKien: { khuVucId: mapKhuVuc.get('KV_MB') },
+      nguoiNhanId: salesHn?.id,
+    },
+    {
+      tenQuyTac: 'Ưu tiên 2: Phân bổ Lead ngành Tài chính vào Sales HCM',
+      thuTuUuTien: 2,
+      loaiQuyTac: 'NGANH_NGHE' as any,
+      dieuKien: { nganhNghe: 'TAI_CHINH' },
+      nguoiNhanId: salesHcm?.id,
+    },
+    {
+      tenQuyTac: 'Ưu tiên 3: Round Robin xoay vòng toàn đội Sales',
+      thuTuUuTien: 3,
+      loaiQuyTac: 'ROUND_ROBIN' as any,
+      danhSachNguoiDungIds: [salesHn?.id, salesHcm?.id].filter(Boolean),
+      chiSoHienTai: 0,
+    },
+  ];
+
+  for (const ar of assignmentRules) {
+    const existing = await prisma.quyTacPhanBo.findFirst({
+      where: { tenQuyTac: ar.tenQuyTac },
+    });
+    if (!existing) {
+      await prisma.quyTacPhanBo.create({ data: ar as any });
+    } else {
+      await prisma.quyTacPhanBo.update({
+        where: { id: existing.id },
+        data: {
+          nguoiNhanId: ar.nguoiNhanId,
+          danhSachNguoiDungIds: ar.danhSachNguoiDungIds,
+          dieuKien: ar.dieuKien,
+        },
+      });
+    }
+  }
+  console.log('✓ Seeded QuyTacPhanBo');
+
+  // 12. KHÁCH HÀNG & NGƯỜI LIÊN HỆ MẪU
+  if (salesHn && salesHcm) {
+    const khachHang1 = await prisma.khachHang.upsert({
+      where: { maKhachHang: 'KH-00001' },
+      update: {},
+      create: {
+        maKhachHang: 'KH-00001',
+        tenCongTy: 'Công ty Cổ phần Công nghệ VNPT Solutions',
+        maSoThue: '0101234567',
+        nganhNghe: 'CONG_NGHE',
+        quyMo: 'TREN_100_NV',
+        website: 'https://vnpt-solutions.vn',
+        diaChi: '57 Huỳnh Thúc Kháng, Đống Đa, Hà Nội',
+        tinhThanh: 'Hà Nội',
+        quocGia: 'Vietnam',
+        nguoiSoHuuId: salesHn.id,
+        nhomKinhDoanhId: nhomHN.id,
+        trangThai: 'KHACH_HANG',
+        moTa: 'Khách hàng lớn mảng viễn thông và giải pháp số',
+      },
+    });
+
+    const khachHang2 = await prisma.khachHang.upsert({
+      where: { maKhachHang: 'KH-00002' },
+      update: {},
+      create: {
+        maKhachHang: 'KH-00002',
+        tenCongTy: 'Tập đoàn Dược phẩm An Bình',
+        maSoThue: '0109876543',
+        nganhNghe: 'Y_TE_DUOC',
+        quyMo: '50_100_NV',
+        website: 'https://anbinhpharma.vn',
+        diaChi: '120 Hai Bà Trưng, Quận 1, TP.HCM',
+        tinhThanh: 'TP.HCM',
+        quocGia: 'Vietnam',
+        nguoiSoHuuId: salesHcm.id,
+        nhomKinhDoanhId: nhomHCM.id,
+        trangThai: 'DANG_GIAO_DICH',
+        moTa: 'Đang đàm phán hợp đồng triển khai gói doanh nghiệp',
+      },
+    });
+
+    const khachHang3 = await prisma.khachHang.upsert({
+      where: { maKhachHang: 'KH-00003' },
+      update: {},
+      create: {
+        maKhachHang: 'KH-00003',
+        tenCongTy: 'Công ty TNHH Đầu tư Thương mại Sao Mai',
+        maSoThue: '0304567890',
+        nganhNghe: 'BAN_LE',
+        quyMo: 'DUOI_50_NV',
+        website: 'https://saomai-retail.com',
+        diaChi: '15 Trần Phú, Ba Đình, Hà Nội',
+        tinhThanh: 'Hà Nội',
+        quocGia: 'Vietnam',
+        nguoiSoHuuId: salesHn.id,
+        nhomKinhDoanhId: nhomHN.id,
+        trangThai: 'TIEM_NANG',
+      },
+    });
+
+    // Thêm Người liên hệ
+    const contacts = [
+      {
+        khachHangId: khachHang1.id,
+        hoTen: 'Nguyễn Văn Quyết',
+        chucDanh: 'Giám đốc Công nghệ Thông tin (CIO)',
+        email: 'quyet.nv@vnpt.vn',
+        soDienThoai: '0912345678',
+        vaiTroQuyetDinh: 'NGUOI_QUYET_DINH' as any,
+        laDauMoiChinh: true,
+      },
+      {
+        khachHang1Id: khachHang1.id,
+        hoTen: 'Trần Thị Hoa',
+        chucDanh: 'Trưởng phòng Mua hàng',
+        email: 'hoa.tt@vnpt.vn',
+        soDienThoai: '0912345679',
+        vaiTroQuyetDinh: 'NGUOI_ANH_HUONG' as any,
+        laDauMoiChinh: false,
+      },
+      {
+        khachHangId: khachHang2.id,
+        hoTen: 'Lê Hoàng Nam',
+        chucDanh: 'Tổng Giám đốc (CEO)',
+        email: 'nam.le@anbinhpharma.vn',
+        soDienThoai: '0988776655',
+        vaiTroQuyetDinh: 'NGUOI_QUYET_DINH' as any,
+        laDauMoiChinh: true,
+      },
+    ];
+
+    for (const c of contacts) {
+      const existing = await prisma.nguoiLienHe.findFirst({
+        where: { email: c.email },
+      });
+      if (!existing) {
+        await prisma.nguoiLienHe.create({
+          data: {
+            khachHangId: c.khachHangId || (c as any).khachHang1Id,
+            hoTen: c.hoTen,
+            chucDanh: c.chucDanh,
+            email: c.email,
+            soDienThoai: c.soDienThoai,
+            vaiTroQuyetDinh: c.vaiTroQuyetDinh,
+            laDauMoiChinh: c.laDauMoiChinh,
+          },
+        });
+      }
+    }
+    console.log('✓ Seeded KhachHang & NguoiLienHe');
+
+    // 13. LEAD MẪU
+    const now = new Date();
+    const deadline24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    const leads = [
+      {
+        maLead: 'LEAD-00001',
+        hoTen: 'Nguyễn Tiến Đạt',
+        email: 'dat.nguyen@fpt.com',
+        soDienThoai: '0933112233',
+        congTy: 'Công ty Cổ phần Phần mềm FPT',
+        chucDanh: 'Quản lý Dự án Bán lẻ',
+        nhuCauQuanTam: 'Cần giải pháp CRM quản lý cơ hội và báo giá cho 200 nhân sự',
+        nguonLead: 'WEBSITE',
+        nganhNghe: 'CONG_NGHE',
+        quyMo: 'TREN_100_NV',
+        khuVucId: mapKhuVuc.get('KV_MB'),
+        nguoiSoHuuId: salesHn.id,
+        nhomKinhDoanhId: nhomHN.id,
+        trangThai: 'CHO_TIEP_NHAN' as any,
+        phanLoai: 'NONG' as any,
+        diemTiemNang: 55, // 20 (cong nghe) + 15 (tren 100 nv) + 20 (website/quan tam)
+        assignedAt: now,
+        slaDeadline: deadline24h,
+        quaHanSla: false,
+      },
+      {
+        maLead: 'LEAD-00002',
+        hoTen: 'Phạm Minh Tuấn',
+        email: 'tuan.pham@techcomsec.vn',
+        soDienThoai: '0944556677',
+        congTy: 'Chứng khoán Kỹ Thương Techcom Securities',
+        chucDanh: 'Trưởng nhóm Tư vấn Tài chính',
+        nhuCauQuanTam: 'Tìm hiểu hệ thống quản lý khách hàng VIP và phân bổ tự động',
+        nguonLead: 'REFERRAL',
+        nganhNghe: 'TAI_CHINH',
+        quyMo: '50_100_NV',
+        khuVucId: mapKhuVuc.get('KV_MN'),
+        nguoiSoHuuId: salesHcm.id,
+        nhomKinhDoanhId: nhomHCM.id,
+        trangThai: 'DANG_CHAM_SOC' as any,
+        phanLoai: 'AM' as any,
+        diemTiemNang: 40,
+        assignedAt: new Date(now.getTime() - 2 * 3600 * 1000),
+        acceptedAt: new Date(now.getTime() - 1 * 3600 * 1000),
+        slaDeadline: deadline24h,
+        quaHanSla: false,
+      },
+      {
+        maLead: 'LEAD-00003',
+        hoTen: 'Vũ Thị Mai',
+        email: 'mai.vu@langngheviet.vn',
+        soDienThoai: '0977889900',
+        congTy: 'Cơ sở Thủ công Mỹ nghệ Làng Nghề Việt',
+        chucDanh: 'Chủ cơ sở',
+        nhuCauQuanTam: 'Tham khảo tính năng lưu trữ danh sách khách quen',
+        nguonLead: 'EVENT',
+        nganhNghe: 'SAN_XUAT',
+        quyMo: 'DUOI_50_NV',
+        khuVucId: null,
+        nguoiSoHuuId: null, // Chưa phân bổ (Queue)
+        nhomKinhDoanhId: null,
+        trangThai: 'MOI' as any,
+        phanLoai: 'LANH' as any,
+        diemTiemNang: 10,
+        assignedAt: null,
+        slaDeadline: null,
+        quaHanSla: false,
+      },
+    ];
+
+    for (const l of leads) {
+      await prisma.lead.upsert({
+        where: { maLead: l.maLead },
+        update: {},
+        create: l,
+      });
+    }
+    console.log('✓ Seeded Lead sample');
+
+    // 14. WEB FORM EMBED MẪU
+    await prisma.webFormEmbed.upsert({
+      where: { maForm: 'FORM_WEBSITE_CHINH' },
+      update: {},
+      create: {
+        maForm: 'FORM_WEBSITE_CHINH',
+        tenForm: 'Form đăng ký tư vấn giải pháp CRM',
+        tieuDe: 'Liên hệ tư vấn giải pháp CRM',
+        moTa: 'Điền thông tin doanh nghiệp để nhận bản demo và tư vấn miễn phí',
+        nguonLeadMacDinh: 'WEBSITE',
+        mauButtonText: 'Đăng ký tư vấn ngay',
+        mauMauChuDao: '#2563eb',
+        kichHoat: true,
+      },
+    });
+    console.log('✓ Seeded WebFormEmbed');
+  }
+
   console.log('--- SEED COMPLETED SUCCESSFULLY ---');
 }
 

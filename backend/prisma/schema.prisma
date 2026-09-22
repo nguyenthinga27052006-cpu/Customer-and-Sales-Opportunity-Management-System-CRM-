@@ -62,6 +62,7 @@ model KhuVuc {
   updatedAt DateTime         @updatedAt @map("updated_at")
 
   nhomKinhDoanh NhomKinhDoanh[]
+  leads         Lead[]
 
   @@map("khu_vuc")
 }
@@ -81,6 +82,8 @@ model NhomKinhDoanh {
   khuVuc       KhuVuc?         @relation(fields: [khuVucId], references: [id], onDelete: SetNull)
   truongNhom   NguoiDung?      @relation("TruongNhom", fields: [truongNhomId], references: [id], onDelete: SetNull)
   thanhVien    NguoiDung[]     @relation("ThanhVienNhom")
+  khachHang    KhachHang[]
+  leads        Lead[]
 
   @@map("nhom_kinh_doanh")
 }
@@ -117,6 +120,12 @@ model NguoiDung {
   phienDangNhap       PhienDangNhap[]
   datLaiMatKhau       DatLaiMatKhau[]
   nhatKyHeThong       NhatKyHeThong[]    @relation("NguoiThucHien")
+  khachHangSoHuu      KhachHang[]        @relation("KhachHangNguoiSoHuu")
+  leadSoHuu           Lead[]             @relation("LeadNguoiSoHuu")
+  coHoiSoHuu          CoHoi[]            @relation("CoHoiNguoiSoHuu")
+  hoatDongThucHien    HoatDong[]         @relation("HoatDongNguoiThucHien")
+  lichSuPhanBoDuocNhan LichSuPhanBo[]    @relation("NguoiDuocPhanBo")
+  lichSuPhanBoThucHien LichSuPhanBo[]    @relation("NguoiPhanBo")
 
   @@map("nguoi_dung")
 }
@@ -166,9 +175,9 @@ model DatLaiMatKhau {
 model NhatKyHeThong {
   id              String     @id @default(uuid())
   nguoiThucHienId String?    @map("nguoi_thuc_hien_id")
-  loaiDoiTuong    String     @map("loai_doi_tuong") // NGUOI_DUNG, VAI_TRO, CHIET_KHAU, CHI_TIEU, SAN_PHAM, QUYEN_SO_HUU
+  loaiDoiTuong    String     @map("loai_doi_tuong") // NGUOI_DUNG, VAI_TRO, KHACH_HANG, LEAD, CO_HOI, QUY_TAC_CHAM_DIEM, QUY_TAC_PHAN_BO
   doiTuongId      String?    @map("doi_tuong_id")
-  hanhDong        String     @map("hanh_dong") // TAO, SUA, XOA, KHOA, BAN_GIAO
+  hanhDong        String     @map("hanh_dong") // TAO, SUA, XOA, KHOA, BAN_GIAO, GOP_KHACH_HANG, CHUYEN_DOI_LEAD, TIEP_NHAN_LEAD, TU_CHOI_LEAD
   giaTriTruoc     Json?      @map("gia_tri_truoc")
   giaTriSau       Json?      @map("gia_tri_sau")
   ipAddress       String?    @map("ip_address")
@@ -244,6 +253,8 @@ model GiaiDoanPipeline {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
+  coHoi              CoHoi[]
+
   @@map("giai_doan_pipeline")
 }
 
@@ -275,3 +286,304 @@ model DoiThu {
 
   @@map("doi_thu")
 }
+
+// ----------------------------------------------------
+// 8. SPRINT 2: KHÁCH HÀNG & NGƯỜI LIÊN HỆ (EP-03)
+// ----------------------------------------------------
+
+enum TrangThaiKhachHang {
+  TIEM_NANG
+  DANG_GIAO_DICH
+  KHACH_HANG
+  NGUNG_HOP_TAC
+}
+
+enum VaiTroQuyetDinh {
+  NGUOI_QUYET_DINH
+  NGUOI_ANH_HUONG
+  NGUOI_DUNG_CUOI
+  NGUOI_CAN_TRO
+}
+
+model KhachHang {
+  id             String             @id @default(uuid())
+  maKhachHang    String             @unique @map("ma_khach_hang")
+  tenCongTy      String             @map("ten_cong_ty")
+  maSoThue       String?            @unique @map("ma_so_thue")
+  nganhNghe      String?            @map("nganh_nghe")
+  quyMo          String?            @map("quy_mo")
+  website        String?            @map("website")
+  diaChi         String?            @map("dia_chi")
+  tinhThanh      String?            @map("tinh_thanh")
+  quocGia        String?            @default("Vietnam") @map("quoc_gia")
+  nguoiSoHuuId   String             @map("nguoi_so_huu_id")
+  nhomKinhDoanhId String?           @map("nhom_kinh_doanh_id")
+  trangThai      TrangThaiKhachHang @default(TIEM_NANG) @map("trang_thai")
+  moTa           String?            @map("mo_ta")
+  daGopVaoId     String?            @map("da_gop_vao_id")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  nguoiSoHuu     NguoiDung          @relation("KhachHangNguoiSoHuu", fields: [nguoiSoHuuId], references: [id], onDelete: Restrict)
+  nhomKinhDoanh  NhomKinhDoanh?     @relation(fields: [nhomKinhDoanhId], references: [id], onDelete: SetNull)
+  nguoiLienHe    NguoiLienHe[]
+  coHoi          CoHoi[]
+  hoatDong       HoatDong[]
+  leadsChuyenDoi Lead[]             @relation("KhachHangChuyenDoiTuLead")
+
+  @@index([maSoThue])
+  @@index([nguoiSoHuuId])
+  @@index([trangThai])
+  @@index([tenCongTy])
+  @@map("khach_hang")
+}
+
+model NguoiLienHe {
+  id             String          @id @default(uuid())
+  khachHangId    String          @map("khach_hang_id")
+  hoTen          String          @map("ho_ten")
+  chucDanh       String?         @map("chuc_danh")
+  email          String?         @map("email")
+  soDienThoai    String?         @map("so_dien_thoai")
+  vaiTroQuyetDinh VaiTroQuyetDinh @default(NGUOI_DUNG_CUOI) @map("vai_tro_quyet_dinh")
+  laDauMoiChinh  Boolean         @default(false) @map("la_dau_moi_chinh")
+  ghiChu         String?         @map("ghi_chu")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  khachHang      KhachHang       @relation(fields: [khachHangId], references: [id], onDelete: Cascade)
+  hoatDong       HoatDong[]
+
+  @@index([khachHangId])
+  @@index([email])
+  @@index([soDienThoai])
+  @@map("nguoi_lien_he")
+}
+
+// ----------------------------------------------------
+// 9. SPRINT 2: LEAD & PHÂN BỔ (EP-04)
+// ----------------------------------------------------
+
+enum TrangThaiLead {
+  MOI
+  CHO_TIEP_NHAN
+  DANG_CHAM_SOC
+  TU_CHOI
+  DA_CHUYEN_DOI
+  KHONG_TIEM_NANG
+}
+
+enum PhanLoaiLead {
+  NONG
+  AM
+  LANH
+}
+
+model Lead {
+  id                  String         @id @default(uuid())
+  maLead              String         @unique @map("ma_lead")
+  hoTen               String         @map("ho_ten")
+  email               String?        @map("email")
+  soDienThoai         String?        @map("so_dien_thoai")
+  congTy              String?        @map("cong_ty")
+  chucDanh            String?        @map("chuc_danh")
+  nhuCauQuanTam       String?        @map("nhu_cau_quan_tam")
+  nguonLead           String         @map("nguon_lead") // REQUIRED: WEBSITE, EXCEL_IMPORT, EVENT, REFERRAL...
+  nganhNghe           String?        @map("nganh_nghe")
+  quyMo               String?        @map("quy_mo")
+  khuVucId            String?        @map("khu_vuc_id")
+  nguoiSoHuuId        String?        @map("nguoi_so_huu_id") // Null = Unassigned Queue
+  nhomKinhDoanhId     String?        @map("nhom_kinh_doanh_id")
+  trangThai           TrangThaiLead  @default(MOI) @map("trang_thai")
+  phanLoai            PhanLoaiLead   @default(LANH) @map("phan_loai")
+  diemTiemNang        Int            @default(0) @map("diem_tiem_nang")
+  lyDoTuChoi          String?        @map("ly_do_tu_choi")
+  khachHangGoiYId     String?        @map("khach_hang_goi_y_id")
+  khachHangChuyenDoiId String?       @map("khach_hang_chuyen_doi_id")
+  coHoiChuyenDoiId    String?        @map("co_hoi_chuyen_doi_id")
+  assignedAt          DateTime?      @map("assigned_at")
+  acceptedAt          DateTime?      @map("accepted_at")
+  rejectedAt          DateTime?      @map("rejected_at")
+  firstContactAt      DateTime?      @map("first_contact_at")
+  slaDeadline         DateTime?      @map("sla_deadline")
+  quaHanSla           Boolean        @default(false) @map("qua_han_sla")
+  formSubmissionId    String?        @map("form_submission_id")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+
+  khuVuc              KhuVuc?        @relation(fields: [khuVucId], references: [id], onDelete: SetNull)
+  nguoiSoHuu          NguoiDung?     @relation("LeadNguoiSoHuu", fields: [nguoiSoHuuId], references: [id], onDelete: SetNull)
+  nhomKinhDoanh       NhomKinhDoanh? @relation(fields: [nhomKinhDoanhId], references: [id], onDelete: SetNull)
+  khachHangChuyenDoi  KhachHang?     @relation("KhachHangChuyenDoiTuLead", fields: [khachHangChuyenDoiId], references: [id], onDelete: SetNull)
+  coHoiChuyenDoi      CoHoi?         @relation("CoHoiChuyenDoiTuLead", fields: [coHoiChuyenDoiId], references: [id], onDelete: SetNull)
+  hoatDong            HoatDong[]
+  lichSuPhanBo        LichSuPhanBo[]
+  coHoiTao            CoHoi[]        @relation("CoHoiNguonLead")
+
+  @@index([email])
+  @@index([soDienThoai])
+  @@index([nguoiSoHuuId])
+  @@index([trangThai])
+  @@index([phanLoai])
+  @@index([createdAt])
+  @@map("lead")
+}
+
+// ----------------------------------------------------
+// 10. SCORING & ASSIGNMENT RULES (EP-04)
+// ----------------------------------------------------
+
+model QuyTacChamDiem {
+  id         String   @id @default(uuid())
+  tenQuyTac  String   @map("ten_quy_tac")
+  tieuChi    String   @map("tieu_chi") // NGANH_NGHE, QUY_MO, NGUON_LEAD, MUC_DO_QUAN_TAM
+  toanTu     String   @default("EQUALS") @map("toan_tu") // EQUALS, CONTAINS, IN
+  giaTri     String   @map("gia_tri")
+  diem       Int      @map("diem")
+  thuTu      Int      @default(0) @map("thu_tu")
+  kichHoat   Boolean  @default(true) @map("kich_hoat")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("quy_tac_cham_diem")
+}
+
+model CauHinhChamDiem {
+  id             String   @id @default(uuid())
+  nguongNong     Int      @default(50) @map("nguong_nong")
+  nguongAm       Int      @default(25) @map("nguong_am")
+  thoiGianSlaGio Int      @default(24) @map("thoi_gian_sla_gio")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("cau_hinh_cham_diem")
+}
+
+enum LoaiPhanBo {
+  KHU_VUC
+  NGANH_NGHE
+  ROUND_ROBIN
+}
+
+model QuyTacPhanBo {
+  id                   String         @id @default(uuid())
+  tenQuyTac            String         @map("ten_quy_tac")
+  thuTuUuTien          Int            @default(1) @map("thu_tu_uu_tien")
+  loaiQuyTac           LoaiPhanBo     @map("loai_quy_tac")
+  dieuKien             Json?          @map("dieu_kien") // { "khuVucId": "...", "nganhNghe": "..." }
+  nguoiNhanId          String?        @map("nguoi_nhan_id")
+  danhSachNguoiDungIds Json?          @map("danh_sach_nguoi_dung_ids") // Array of string user IDs
+  chiSoHienTai         Int            @default(0) @map("chi_so_hien_tai")
+  kichHoat             Boolean        @default(true) @map("kich_hoat")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
+
+  lichSuPhanBo         LichSuPhanBo[]
+
+  @@map("quy_tac_phan_bo")
+}
+
+model LichSuPhanBo {
+  id               String        @id @default(uuid())
+  leadId           String        @map("lead_id")
+  nguoiDuocPhanBoId String?      @map("nguoi_duoc_phan_bo_id")
+  quyTacId         String?       @map("quy_tac_id")
+  loaiPhanBo       String        @default("TU_DONG") @map("loai_phan_bo") // TU_DONG, THU_CONG
+  lyDo             String?       @map("ly_do")
+  nguoiThucHienId  String?       @map("nguoi_thuc_hien_id")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  lead             Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  nguoiDuocPhanBo  NguoiDung?    @relation("NguoiDuocPhanBo", fields: [nguoiDuocPhanBoId], references: [id], onDelete: SetNull)
+  quyTac           QuyTacPhanBo? @relation(fields: [quyTacId], references: [id], onDelete: SetNull)
+  nguoiThucHien    NguoiDung?    @relation("NguoiPhanBo", fields: [nguoiThucHienId], references: [id], onDelete: SetNull)
+
+  @@map("lich_su_phan_bo")
+}
+
+// ----------------------------------------------------
+// 11. CƠ HỘI BÁN HÀNG TỐI THIỂU (CHO CONVERSION & CUSTOMER 360)
+// ----------------------------------------------------
+
+enum TrangThaiCoHoi {
+  DANG_XU_LY
+  DONG_THANG
+  DONG_THUA
+}
+
+model CoHoi {
+  id             String           @id @default(uuid())
+  maCoHoi        String           @unique @map("ma_co_hoi")
+  tenCoHoi       String           @map("ten_co_hoi")
+  khachHangId    String           @map("khach_hang_id")
+  leadId         String?          @map("lead_id")
+  giaiDoanId     String           @map("giai_doan_id")
+  giaTriDuKien   Decimal          @default(0) @map("gia_tri_du_kien") @db.Decimal(15, 2)
+  ngayKyDuKien   DateTime?        @map("ngay_ky_du_kien")
+  nguoiSoHuuId   String           @map("nguoi_so_huu_id")
+  trangThai      TrangThaiCoHoi   @default(DANG_XU_LY) @map("trang_thai")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  khachHang      KhachHang        @relation(fields: [khachHangId], references: [id], onDelete: Cascade)
+  leadNguon      Lead?            @relation("CoHoiNguonLead", fields: [leadId], references: [id], onDelete: SetNull)
+  giaiDoan       GiaiDoanPipeline @relation(fields: [giaiDoanId], references: [id], onDelete: Restrict)
+  nguoiSoHuu     NguoiDung        @relation("CoHoiNguoiSoHuu", fields: [nguoiSoHuuId], references: [id], onDelete: Restrict)
+  hoatDong       HoatDong[]
+  leadsChuyenDoi Lead[]           @relation("CoHoiChuyenDoiTuLead")
+
+  @@index([khachHangId])
+  @@index([nguoiSoHuuId])
+  @@index([trangThai])
+  @@map("co_hoi")
+}
+
+// ----------------------------------------------------
+// 12. DÒNG THỜI GIAN HOẠT ĐỘNG (TIMELINE CHO 360 & LEAD)
+// ----------------------------------------------------
+
+model HoatDong {
+  id             String       @id @default(uuid())
+  loaiHoatDong   String       @map("loai_hoat_dong") // GOI_DIEN, HOP, EMAIL, GHI_CHU, CONVERT_LEAD, MERGE_CUSTOMER, PHAN_BO_LEAD
+  tieuDe         String       @map("tieu_de")
+  noiDung        String?      @map("noi_dung")
+  khachHangId    String?      @map("khach_hang_id")
+  nguoiLienHeId  String?      @map("nguoi_lien_he_id")
+  leadId         String?      @map("lead_id")
+  coHoiId        String?      @map("co_hoi_id")
+  nguoiThucHienId String      @map("nguoi_thuc_hien_id")
+  thoiGian       DateTime     @default(now()) @map("thoi_gian")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  khachHang      KhachHang?   @relation(fields: [khachHangId], references: [id], onDelete: Cascade)
+  nguoiLienHe    NguoiLienHe? @relation(fields: [nguoiLienHeId], references: [id], onDelete: SetNull)
+  lead           Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  coHoi          CoHoi?       @relation(fields: [coHoiId], references: [id], onDelete: Cascade)
+  nguoiThucHien  NguoiDung    @relation("HoatDongNguoiThucHien", fields: [nguoiThucHienId], references: [id], onDelete: Restrict)
+
+  @@index([khachHangId])
+  @@index([leadId])
+  @@index([coHoiId])
+  @@index([thoiGian])
+  @@map("hoat_dong")
+}
+
+// ----------------------------------------------------
+// 13. WEBSITE FORM EMBED (EP-04 S4-01)
+// ----------------------------------------------------
+
+model WebFormEmbed {
+  id                String   @id @default(uuid())
+  maForm            String   @unique @map("ma_form")
+  tenForm           String   @map("ten_form")
+  tieuDe            String?  @map("tieu_de")
+  moTa              String?  @map("mo_ta")
+  nguonLeadMacDinh  String   @default("WEBSITE") @map("nguon_lead_mac_dinh")
+  mauButtonText     String   @default("Gửi liên hệ") @map("mau_button_text")
+  mauMauChuDao      String   @default("#2563eb") @map("mau_mau_chu_dao")
+  kichHoat          Boolean  @default(true) @map("kich_hoat")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("web_form_embed")
+}
+
