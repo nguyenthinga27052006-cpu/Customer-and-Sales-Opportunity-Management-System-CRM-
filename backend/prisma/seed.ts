@@ -742,6 +742,164 @@ async function main() {
       },
     });
     console.log('✓ Seeded WebFormEmbed');
+
+    // 15. SPRINT 3: CƠ HỘI BÁN HÀNG & PIPELINE
+    const stages = await prisma.giaiDoanPipeline.findMany({ orderBy: { thuTu: 'asc' } });
+    const stageMap = new Map(stages.map((s) => [s.maGiaiDoan, s]));
+    const products = await prisma.sanPham.findMany();
+    const prodMap = new Map(products.map((p) => [p.maSanPham, p]));
+    const allCustomers = await prisma.khachHang.findMany();
+
+    if (allCustomers.length >= 2) {
+      const cust1 = allCustomers[0];
+      const cust2 = allCustomers[1];
+      const salesHn = await prisma.nguoiDung.findUnique({ where: { email: 'sales_hn1@crm.vn' } });
+      const salesHcm = await prisma.nguoiDung.findUnique({ where: { email: 'sales_hcm1@crm.vn' } });
+
+      if (salesHn && stageMap.has('GD_01_TIEP_CAN') && stageMap.has('GD_03_DE_XUAT')) {
+        const s1 = stageMap.get('GD_01_TIEP_CAN')!;
+        const s3 = stageMap.get('GD_03_DE_XUAT')!;
+
+        // Opportunity 1: Đang đề xuất demo
+        const ch1 = await prisma.coHoi.upsert({
+          where: { maCoHoi: 'CH-000001' },
+          update: {},
+          create: {
+            maCoHoi: 'CH-000001',
+            tenCoHoi: 'Triển khai CRM Cloud Gói Chuyên Nghiệp - 20 Users',
+            khachHangId: cust1.id,
+            giaiDoanId: s3.id,
+            nhomKinhDoanhId: salesHn.nhomKinhDoanhId,
+            nguoiSoHuuId: salesHn.id,
+            giaTriDuKien: 69600000,
+            xacSuat: s3.xacSuatThang,
+            duBaoGiaTri: 69600000 * (s3.xacSuatThang / 100),
+            ngayKyDuKien: new Date(Date.now() + 15 * 86400000),
+            nguonCoHoi: 'WEBSITE',
+            trangThai: 'DANG_XU_LY',
+            ngayHoatDongCuoi: new Date(),
+            laDinhTre: false,
+          },
+        });
+
+        // Add products to ch1
+        const pPro = prodMap.get('CRM-SaaS-PRO');
+        if (pPro) {
+          await prisma.coHoiSanPham.deleteMany({ where: { coHoiId: ch1.id } });
+          await prisma.coHoiSanPham.create({
+            data: {
+              coHoiId: ch1.id,
+              sanPhamId: pPro.id,
+              soLuong: 20,
+              donGia: 290000,
+              chietKhauPhanTram: 0,
+              chietKhauSoTien: 0,
+              soKyThueBao: 12,
+              giaTriNam: 20 * 290000 * 12,
+              thanhTien: 20 * 290000 * 12, // 69,600,000
+              ghiChu: 'Gói PRO 20 users thanh toán năm',
+            },
+          });
+        }
+
+        // Opportunity 2: Tiếp cận ban đầu (đình trệ)
+        const ch2 = await prisma.coHoi.upsert({
+          where: { maCoHoi: 'CH-000002' },
+          update: {},
+          create: {
+            maCoHoi: 'CH-000002',
+            tenCoHoi: 'Tư vấn phần mềm quản lý bán hàng cho chuỗi bán lẻ',
+            khachHangId: cust2.id,
+            giaiDoanId: s1.id,
+            nhomKinhDoanhId: salesHcm ? salesHcm.nhomKinhDoanhId : null,
+            nguoiSoHuuId: salesHcm ? salesHcm.id : salesHn.id,
+            giaTriDuKien: 35000000,
+            xacSuat: s1.xacSuatThang,
+            duBaoGiaTri: 35000000 * (s1.xacSuatThang / 100),
+            ngayKyDuKien: new Date(Date.now() + 30 * 86400000),
+            nguonCoHoi: 'GIOI_THIEU',
+            trangThai: 'DANG_XU_LY',
+            ngayHoatDongCuoi: new Date(Date.now() - 10 * 86400000),
+            laDinhTre: true,
+          },
+        });
+
+        // Add Activities & Tasks
+        await prisma.hoatDong.createMany({
+          data: [
+            {
+              loaiHoatDong: 'GOI_DIEN',
+              tieuDe: 'Cuộc gọi trao đổi nhu cầu ban đầu với khách hàng',
+              noiDung: 'Khách hàng quan tâm đến tính năng báo cáo doanh số và phân quyền chi tiết',
+              khachHangId: cust1.id,
+              coHoiId: ch1.id,
+              nguoiThucHienId: salesHn.id,
+              thoiLuongPhut: 15,
+              ketQua: 'Khách hàng đồng ý tham gia buổi demo trực tuyến',
+              thoiGian: new Date(Date.now() - 2 * 86400000),
+            },
+            {
+              loaiHoatDong: 'GAP_MAT',
+              tieuDe: 'Buổi Demo giải pháp CRM Cloud trực tiếp',
+              noiDung: 'Trình diễn tính năng Kanban pipeline, phân bổ lead và Customer 360',
+              khachHangId: cust1.id,
+              coHoiId: ch1.id,
+              nguoiThucHienId: salesHn.id,
+              diaDiem: 'Văn phòng khách hàng - Tầng 8 Tòa nhà Diamond',
+              thoiLuongPhut: 60,
+              ketQua: 'Ban giám đốc hài lòng, yêu cầu gửi báo giá chi tiết',
+              thoiGian: new Date(Date.now() - 1 * 86400000),
+            },
+            {
+              loaiHoatDong: 'CONG_VIEC',
+              tieuDe: 'Gửi báo giá chính thức và hợp đồng mẫu',
+              noiDung: 'Soạn thảo báo giá gói PRO 20 user chiết khấu 5% kèm cam kết SLA hỗ trợ',
+              khachHangId: cust1.id,
+              coHoiId: ch1.id,
+              nguoiThucHienId: salesHn.id,
+              nguoiDuocGiaoId: salesHn.id,
+              hanHoanThanh: new Date(Date.now() + 2 * 86400000),
+              trangThaiCongViec: 'CHUA_HOAN_THANH',
+              mucDoUuTien: 'CAO',
+            },
+            {
+              loaiHoatDong: 'CONG_VIEC',
+              tieuDe: 'Gọi điện nhắc lịch hẹn demo bổ sung',
+              noiDung: 'Khách hàng bận đi công tác tuần trước cần gọi lại',
+              khachHangId: cust2.id,
+              coHoiId: ch2.id,
+              nguoiThucHienId: salesHn.id,
+              nguoiDuocGiaoId: salesHn.id,
+              hanHoanThanh: new Date(Date.now() - 1 * 86400000),
+              trangThaiCongViec: 'CHUA_HOAN_THANH',
+              mucDoUuTien: 'KHAN_CAP',
+            },
+          ],
+        });
+
+        // Seed Chỉ tiêu doanh số
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth() + 1;
+        await prisma.chiTieuDoanhSo.createMany({
+          data: [
+            {
+              nguoiDungId: salesHn.id,
+              nam: currentYear,
+              thang: currentMonth,
+              chiTieu: 100000000,
+            },
+            {
+              nhomKinhDoanhId: salesHn.nhomKinhDoanhId,
+              nam: currentYear,
+              thang: currentMonth,
+              chiTieu: 300000000,
+            },
+          ],
+        });
+
+        console.log('✓ Seeded Sprint 3 Opportunities, Products, Activities, Tasks, Targets');
+      }
+    }
   }
 
   console.log('--- SEED COMPLETED SUCCESSFULLY ---');

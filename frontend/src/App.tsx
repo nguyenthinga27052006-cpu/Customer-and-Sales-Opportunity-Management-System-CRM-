@@ -20,6 +20,13 @@ import { LeadListPage } from './pages/LeadListPage';
 import { LeadDetailPage } from './pages/LeadDetailPage';
 import { LeadConfigPage } from './pages/LeadConfigPage';
 import { WebFormEmbedPage } from './pages/WebFormEmbedPage';
+import { OpportunityListPage } from './pages/OpportunityListPage';
+import { OpportunityDetailPage } from './pages/OpportunityDetailPage';
+import { PipelineKanbanPage } from './pages/PipelineKanbanPage';
+import { ForecastReportPage } from './pages/ForecastReportPage';
+import { ActivityListPage } from './pages/ActivityListPage';
+import { TaskListPage } from './pages/TaskListPage';
+import { CalendarPage } from './pages/CalendarPage';
 import { Error403Page } from './pages/errors/Error403Page';
 import { Error404Page } from './pages/errors/Error404Page';
 import { VaiTroEnum } from './types';
@@ -62,6 +69,17 @@ export const App: React.FC = () => {
               }
             />
             <Route path="leads-webform" element={<WebFormEmbedPage />} />
+
+            {/* SPRINT 3: CƠ HỘI & PIPELINE (EP-05) */}
+            <Route path="opportunities" element={<OpportunityListPage />} />
+            <Route path="opportunities/kanban" element={<PipelineKanbanPage />} />
+            <Route path="opportunities/:id" element={<OpportunityDetailPage />} />
+            <Route path="forecast" element={<ForecastReportPage />} />
+
+            {/* SPRINT 3: HOẠT ĐỘNG, TASK & LỊCH LÀM VIỆC (EP-06) */}
+            <Route path="activities" element={<ActivityListPage />} />
+            <Route path="tasks" element={<TaskListPage />} />
+            <Route path="calendar" element={<CalendarPage />} />
 
             {/* Quản trị Người dùng (Admin, Director, Team Lead) */}
             <Route

@@ -84,6 +84,8 @@ model NhomKinhDoanh {
   thanhVien    NguoiDung[]     @relation("ThanhVienNhom")
   khachHang    KhachHang[]
   leads        Lead[]
+  coHoi        CoHoi[]
+  chiTieuDoanhSo ChiTieuDoanhSo[]
 
   @@map("nhom_kinh_doanh")
 }
@@ -124,8 +126,11 @@ model NguoiDung {
   leadSoHuu           Lead[]             @relation("LeadNguoiSoHuu")
   coHoiSoHuu          CoHoi[]            @relation("CoHoiNguoiSoHuu")
   hoatDongThucHien    HoatDong[]         @relation("HoatDongNguoiThucHien")
+  hoatDongDuocGiao    HoatDong[]         @relation("HoatDongNguoiDuocGiao")
+  lichSuChuyenGiaiDoan LichSuChuyenGiaiDoan[] @relation("NguoiChuyenGiaiDoan")
   lichSuPhanBoDuocNhan LichSuPhanBo[]    @relation("NguoiDuocPhanBo")
   lichSuPhanBoThucHien LichSuPhanBo[]    @relation("NguoiPhanBo")
+  chiTieuDoanhSo      ChiTieuDoanhSo[]
 
   @@map("nguoi_dung")
 }
@@ -235,6 +240,8 @@ model SanPham {
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
 
+  coHoiSanPham CoHoiSanPham[]
+
   @@map("san_pham")
 }
 
@@ -248,12 +255,15 @@ model GiaiDoanPipeline {
   tenGiaiDoan        String   @map("ten_giai_doan")
   thuTu              Int      @map("thu_tu")
   xacSuatThang       Int      @default(10) @map("xac_suat_thang") // % xác suất thắng (0-100)
+  soNgayDinhTre      Int      @default(7) @map("so_ngay_dinh_tre") // Số ngày không có hoạt động thì coi là đình trệ (S5-07)
   dieuKienBatBuoc    String?  @map("dieu_kien_bat_buoc")
   kichHoat           Boolean  @default(true) @map("kich_hoat")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   coHoi              CoHoi[]
+  lichSuTruoc        LichSuChuyenGiaiDoan[] @relation("GiaiDoanTruoc")
+  lichSuSau          LichSuChuyenGiaiDoan[] @relation("GiaiDoanSau")
 
   @@map("giai_doan_pipeline")
 }
@@ -272,6 +282,8 @@ model LyDoThangThua {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  coHoi     CoHoi[]
+
   @@map("ly_do_thang_thua")
 }
 
@@ -283,6 +295,8 @@ model DoiThu {
   moTa      String?  @map("mo_ta")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  coHoi     CoHoi[]
 
   @@map("doi_thu")
 }
@@ -353,6 +367,7 @@ model NguoiLienHe {
 
   khachHang      KhachHang       @relation(fields: [khachHangId], references: [id], onDelete: Cascade)
   hoatDong       HoatDong[]
+  coHoi          CoHoi[]
 
   @@index([khachHangId])
   @@index([email])
@@ -501,7 +516,7 @@ model LichSuPhanBo {
 }
 
 // ----------------------------------------------------
-// 11. CƠ HỘI BÁN HÀNG TỐI THIỂU (CHO CONVERSION & CUSTOMER 360)
+// 11. CƠ HỘI BÁN HÀNG (EP-05 S5-01 -> S5-08, S6-01, S6-02)
 // ----------------------------------------------------
 
 enum TrangThaiCoHoi {
@@ -511,60 +526,179 @@ enum TrangThaiCoHoi {
 }
 
 model CoHoi {
-  id             String           @id @default(uuid())
-  maCoHoi        String           @unique @map("ma_co_hoi")
-  tenCoHoi       String           @map("ten_co_hoi")
-  khachHangId    String           @map("khach_hang_id")
-  leadId         String?          @map("lead_id")
-  giaiDoanId     String           @map("giai_doan_id")
-  giaTriDuKien   Decimal          @default(0) @map("gia_tri_du_kien") @db.Decimal(15, 2)
-  ngayKyDuKien   DateTime?        @map("ngay_ky_du_kien")
-  nguoiSoHuuId   String           @map("nguoi_so_huu_id")
-  trangThai      TrangThaiCoHoi   @default(DANG_XU_LY) @map("trang_thai")
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime         @updatedAt @map("updated_at")
+  id                  String           @id @default(uuid())
+  maCoHoi             String           @unique @map("ma_co_hoi")
+  tenCoHoi            String           @map("ten_co_hoi")
+  khachHangId         String           @map("khach_hang_id")
+  nguoiLienHeId       String?          @map("nguoi_lien_he_id")
+  leadId              String?          @map("lead_id")
+  giaiDoanId          String           @map("giai_doan_id")
+  nhomKinhDoanhId     String?          @map("nhom_kinh_doanh_id")
+  nguoiSoHuuId        String           @map("nguoi_so_huu_id")
+  giaTriDuKien        Decimal          @default(0) @map("gia_tri_du_kien") @db.Decimal(15, 2)
+  xacSuat             Int              @default(10) @map("xac_suat")
+  ghiChuXacSuat       String?          @map("ghi_chu_xac_suat")
+  duBaoGiaTri         Decimal          @default(0) @map("du_bao_gia_tri") @db.Decimal(15, 2)
+  ngayKyDuKien        DateTime?        @map("ngay_ky_du_kien")
+  nguonCoHoi          String?          @map("nguon_co_hoi")
+  moTa                String?          @map("mo_ta")
+  trangThai           TrangThaiCoHoi   @default(DANG_XU_LY) @map("trang_thai")
+  giaTriThucTe        Decimal?         @map("gia_tri_thuc_te") @db.Decimal(15, 2)
+  ngayDongThucTe      DateTime?        @map("ngay_dong_thuc_te")
+  lyDoThangThuaId     String?          @map("ly_do_thang_thua_id")
+  doiThuId            String?          @map("doi_thu_id")
+  ghiChuDong          String?          @map("ghi_chu_dong")
+  ngayHoatDongCuoi    DateTime?        @map("ngay_hoat_dong_cuoi")
+  laDinhTre           Boolean          @default(false) @map("la_dinh_tre")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
 
-  khachHang      KhachHang        @relation(fields: [khachHangId], references: [id], onDelete: Cascade)
-  leadNguon      Lead?            @relation("CoHoiNguonLead", fields: [leadId], references: [id], onDelete: SetNull)
-  giaiDoan       GiaiDoanPipeline @relation(fields: [giaiDoanId], references: [id], onDelete: Restrict)
-  nguoiSoHuu     NguoiDung        @relation("CoHoiNguoiSoHuu", fields: [nguoiSoHuuId], references: [id], onDelete: Restrict)
-  hoatDong       HoatDong[]
-  leadsChuyenDoi Lead[]           @relation("CoHoiChuyenDoiTuLead")
+  khachHang           KhachHang        @relation(fields: [khachHangId], references: [id], onDelete: Cascade)
+  nguoiLienHe         NguoiLienHe?     @relation(fields: [nguoiLienHeId], references: [id], onDelete: SetNull)
+  leadNguon           Lead?            @relation("CoHoiNguonLead", fields: [leadId], references: [id], onDelete: SetNull)
+  giaiDoan            GiaiDoanPipeline @relation(fields: [giaiDoanId], references: [id], onDelete: Restrict)
+  nhomKinhDoanh       NhomKinhDoanh?   @relation(fields: [nhomKinhDoanhId], references: [id], onDelete: SetNull)
+  nguoiSoHuu          NguoiDung        @relation("CoHoiNguoiSoHuu", fields: [nguoiSoHuuId], references: [id], onDelete: Restrict)
+  lyDoThangThua       LyDoThangThua?   @relation(fields: [lyDoThangThuaId], references: [id], onDelete: SetNull)
+  doiThu              DoiThu?          @relation(fields: [doiThuId], references: [id], onDelete: SetNull)
+
+  sanPhamCoHoi        CoHoiSanPham[]
+  hoatDong            HoatDong[]
+  leadsChuyenDoi      Lead[]           @relation("CoHoiChuyenDoiTuLead")
+  lichSuChuyenGiaiDoan LichSuChuyenGiaiDoan[]
 
   @@index([khachHangId])
   @@index([nguoiSoHuuId])
+  @@index([nhomKinhDoanhId])
+  @@index([giaiDoanId])
   @@index([trangThai])
+  @@index([laDinhTre])
   @@map("co_hoi")
 }
 
 // ----------------------------------------------------
-// 12. DÒNG THỜI GIAN HOẠT ĐỘNG (TIMELINE CHO 360 & LEAD)
+// 12. DÒNG SẢN PHẨM TRONG CƠ HỘI (S5-03)
+// ----------------------------------------------------
+
+model CoHoiSanPham {
+  id                 String      @id @default(uuid())
+  coHoiId            String      @map("co_hoi_id")
+  sanPhamId          String      @map("san_pham_id")
+  soLuong            Int         @default(1) @map("so_luong")
+  donGia             Decimal     @map("don_gia") @db.Decimal(15, 2)
+  chietKhauPhanTram  Decimal     @default(0) @map("chiet_khau_phan_tram") @db.Decimal(5, 2)
+  chietKhauSoTien    Decimal     @default(0) @map("chiet_khau_so_tien") @db.Decimal(15, 2)
+  thanhTien          Decimal     @map("thanh_tien") @db.Decimal(15, 2)
+  soKyThueBao        Int?        @default(1) @map("so_ky_thue_bao")
+  giaTriNam          Decimal?    @map("gia_tri_nam") @db.Decimal(15, 2)
+  ghiChu             String?     @map("ghi_chu")
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+
+  coHoi              CoHoi       @relation(fields: [coHoiId], references: [id], onDelete: Cascade)
+  sanPham            SanPham     @relation(fields: [sanPhamId], references: [id], onDelete: Restrict)
+
+  @@index([coHoiId])
+  @@index([sanPhamId])
+  @@map("co_hoi_san_pham")
+}
+
+// ----------------------------------------------------
+// 13. LỊCH SỬ CHUYỂN GIAI ĐOẠN & THAY ĐỔI CƠ HỘI (S6-01)
+// ----------------------------------------------------
+
+model LichSuChuyenGiaiDoan {
+  id                 String            @id @default(uuid())
+  coHoiId            String            @map("co_hoi_id")
+  giaiDoanTruocId    String?           @map("giai_doan_truoc_id")
+  giaiDoanSauId      String            @map("giai_doan_sau_id")
+  giaTriTruoc        Decimal?          @map("gia_tri_truoc") @db.Decimal(15, 2)
+  giaTriSau          Decimal?          @map("gia_tri_sau") @db.Decimal(15, 2)
+  ngayChotTruoc      DateTime?         @map("ngay_chot_truoc")
+  ngayChotSau        DateTime?         @map("ngay_chot_sau")
+  nguoiSoHuuTruocId  String?           @map("nguoi_so_huu_truoc_id")
+  nguoiSoHuuSauId    String?           @map("nguoi_so_huu_sau_id")
+  lyDoChuyen         String?           @map("ly_do_chuyen")
+  ghiDeDieuKien      Boolean           @default(false) @map("ghi_de_dieu_kien")
+  nguoiThucHienId    String            @map("nguoi_thuc_hien_id")
+  createdAt          DateTime          @default(now()) @map("created_at")
+
+  coHoi              CoHoi             @relation(fields: [coHoiId], references: [id], onDelete: Cascade)
+  giaiDoanTruoc      GiaiDoanPipeline? @relation("GiaiDoanTruoc", fields: [giaiDoanTruocId], references: [id], onDelete: SetNull)
+  giaiDoanSau        GiaiDoanPipeline  @relation("GiaiDoanSau", fields: [giaiDoanSauId], references: [id], onDelete: Restrict)
+  nguoiThucHien      NguoiDung         @relation("NguoiChuyenGiaiDoan", fields: [nguoiThucHienId], references: [id], onDelete: Restrict)
+
+  @@index([coHoiId])
+  @@map("lich_su_chuyen_giai_doan")
+}
+
+// ----------------------------------------------------
+// 14. HOẠT ĐỘNG, CÔNG VIỆC (TASK) & LỊCH (EP-06)
 // ----------------------------------------------------
 
 model HoatDong {
-  id             String       @id @default(uuid())
-  loaiHoatDong   String       @map("loai_hoat_dong") // GOI_DIEN, HOP, EMAIL, GHI_CHU, CONVERT_LEAD, MERGE_CUSTOMER, PHAN_BO_LEAD
-  tieuDe         String       @map("tieu_de")
-  noiDung        String?      @map("noi_dung")
-  khachHangId    String?      @map("khach_hang_id")
-  nguoiLienHeId  String?      @map("nguoi_lien_he_id")
-  leadId         String?      @map("lead_id")
-  coHoiId        String?      @map("co_hoi_id")
-  nguoiThucHienId String      @map("nguoi_thuc_hien_id")
-  thoiGian       DateTime     @default(now()) @map("thoi_gian")
-  createdAt      DateTime     @default(now()) @map("created_at")
+  id                  String       @id @default(uuid())
+  loaiHoatDong        String       @map("loai_hoat_dong") // GOI_DIEN, GAP_MAT, EMAIL, GHI_CHU, CONG_VIEC, CONVERT_LEAD, MERGE_CUSTOMER, PHAN_BO_LEAD
+  tieuDe              String       @map("tieu_de")
+  noiDung             String?      @map("noi_dung")
+  khachHangId         String?      @map("khach_hang_id")
+  nguoiLienHeId       String?      @map("nguoi_lien_he_id")
+  leadId              String?      @map("lead_id")
+  coHoiId             String?      @map("co_hoi_id")
+  nguoiThucHienId     String?      @map("nguoi_thuc_hien_id")
+  thoiGian            DateTime     @default(now()) @map("thoi_gian")
+  thoiLuongPhut       Int?         @map("thoi_luong_phut")
+  diaDiem             String?      @map("dia_diem")
+  ketQua              String?      @map("ket_qua")
+  hanHoanThanh        DateTime?    @map("han_hoan_thanh")
+  trangThaiCongViec   String?      @default("CHUA_HOAN_THANH") @map("trang_thai_cong_viec") // CHUA_HOAN_THANH, HOAN_THANH, HOAN_HUY
+  mucDoUuTien         String?      @default("TRUNG_BINH") @map("muc_do_uu_tien") // THAP, TRUNG_BINH, CAO, KHAN_CAP
+  nguoiDuocGiaoId     String?      @map("nguoi_duoc_giao_id")
+  ngayHoanThanh       DateTime?    @map("ngay_hoan_thanh")
+  lyDoHoanHuy         String?      @map("ly_do_hoan_huy")
+  thoiGianNhacNho     DateTime?    @map("thoi_gian_nhac_nho")
+  daNhacNho           Boolean      @default(false) @map("da_nhac_nho")
+  createdAt           DateTime     @default(now()) @map("created_at")
 
-  khachHang      KhachHang?   @relation(fields: [khachHangId], references: [id], onDelete: Cascade)
-  nguoiLienHe    NguoiLienHe? @relation(fields: [nguoiLienHeId], references: [id], onDelete: SetNull)
-  lead           Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  coHoi          CoHoi?       @relation(fields: [coHoiId], references: [id], onDelete: Cascade)
-  nguoiThucHien  NguoiDung    @relation("HoatDongNguoiThucHien", fields: [nguoiThucHienId], references: [id], onDelete: Restrict)
+  khachHang           KhachHang?   @relation(fields: [khachHangId], references: [id], onDelete: Cascade)
+  nguoiLienHe         NguoiLienHe? @relation(fields: [nguoiLienHeId], references: [id], onDelete: SetNull)
+  lead                Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  coHoi               CoHoi?       @relation(fields: [coHoiId], references: [id], onDelete: Cascade)
+  nguoiThucHien       NguoiDung?   @relation("HoatDongNguoiThucHien", fields: [nguoiThucHienId], references: [id], onDelete: SetNull)
+  nguoiDuocGiao       NguoiDung?   @relation("HoatDongNguoiDuocGiao", fields: [nguoiDuocGiaoId], references: [id], onDelete: SetNull)
 
   @@index([khachHangId])
   @@index([leadId])
   @@index([coHoiId])
   @@index([thoiGian])
+  @@index([hanHoanThanh])
+  @@index([trangThaiCongViec])
+  @@index([nguoiDuocGiaoId])
   @@map("hoat_dong")
+}
+
+// ----------------------------------------------------
+// 15. CHỈ TIÊU DOANH SỐ CHO FORECAST (S5-06)
+// ----------------------------------------------------
+
+model ChiTieuDoanhSo {
+  id              String          @id @default(uuid())
+  nguoiDungId     String?         @map("nguoi_dung_id")
+  nhomKinhDoanhId String?         @map("nhom_kinh_doanh_id")
+  nam             Int             @map("nam")
+  thang           Int?            @map("thang")
+  quy             Int?            @map("quy")
+  chiTieu         Decimal         @map("chi_tieu") @db.Decimal(15, 2)
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  nguoiDung       NguoiDung?      @relation(fields: [nguoiDungId], references: [id], onDelete: Cascade)
+  nhomKinhDoanh   NhomKinhDoanh?  @relation(fields: [nhomKinhDoanhId], references: [id], onDelete: Cascade)
+
+  @@index([nguoiDungId])
+  @@index([nhomKinhDoanhId])
+  @@index([nam, thang])
+  @@map("chi_tieu_doanh_so")
 }
 
 // ----------------------------------------------------

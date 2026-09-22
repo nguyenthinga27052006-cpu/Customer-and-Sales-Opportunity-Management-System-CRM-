@@ -11,6 +11,8 @@ import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { KhachHangModule } from './modules/khach-hang/khach-hang.module';
 import { NguoiLienHeModule } from './modules/nguoi-lien-he/nguoi-lien-he.module';
 import { LeadModule } from './modules/lead/lead.module';
+import { CoHoiModule } from './modules/co-hoi/co-hoi.module';
+import { HoatDongModule } from './modules/hoat-dong/hoat-dong.module';
 import { DataScopeService } from './common/services/data-scope.service';
 
 @Module({
@@ -27,6 +29,8 @@ import { DataScopeService } from './common/services/data-scope.service';
     KhachHangModule,
     NguoiLienHeModule,
     LeadModule,
+    CoHoiModule,
+    HoatDongModule,
   ],
   providers: [DataScopeService],
   exports: [DataScopeService],

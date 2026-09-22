@@ -327,6 +327,8 @@ export class KhachHangService {
    */
   async layCustomer360(id: string, currentUser: any, pageActivity: number = 1, limitActivity: number = 50) {
     const startTime = Date.now();
+    const page = Math.max(Number(pageActivity) || 1, 1);
+    const limit = Math.max(Number(limitActivity) || 50, 1);
     const khachHang = await this.layChiTiet(id, currentUser);
 
     const [contacts, openOpportunities, closedOpportunities, valueAggregates, activities, totalActivities] =
@@ -369,8 +371,8 @@ export class KhachHangService {
         // 5. Activity Timeline phân trang (Index theo khachHangId + thoiGian)
         this.prisma.hoatDong.findMany({
           where: { khachHangId: id },
-          skip: (pageActivity - 1) * limitActivity,
-          take: limitActivity,
+          skip: (page - 1) * limit,
+          take: limit,
           orderBy: { thoiGian: 'desc' },
           include: {
             nguoiThucHien: { select: { id: true, hoTen: true, avatarUrl: true } },

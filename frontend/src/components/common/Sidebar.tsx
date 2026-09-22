@@ -15,6 +15,11 @@ import {
   LayoutDashboard,
   UserCheck,
   Briefcase,
+  Kanban,
+  TrendingUp,
+  Activity,
+  CheckSquare,
+  Calendar,
   X,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -45,6 +50,42 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       title: 'Lead Tiềm năng',
       to: '/leads',
       icon: Target,
+      show: true,
+    },
+    {
+      title: 'Cơ hội bán hàng',
+      to: '/opportunities',
+      icon: Briefcase,
+      show: true,
+    },
+    {
+      title: 'Đường ống Kanban',
+      to: '/opportunities/kanban',
+      icon: Kanban,
+      show: true,
+    },
+    {
+      title: 'Dự báo Doanh số',
+      to: '/forecast',
+      icon: TrendingUp,
+      show: true,
+    },
+    {
+      title: 'Nhật ký Hoạt động',
+      to: '/activities',
+      icon: Activity,
+      show: true,
+    },
+    {
+      title: 'Nhiệm vụ & Deadline',
+      to: '/tasks',
+      icon: CheckSquare,
+      show: true,
+    },
+    {
+      title: 'Lịch làm việc',
+      to: '/calendar',
+      icon: Calendar,
       show: true,
     },
     {
